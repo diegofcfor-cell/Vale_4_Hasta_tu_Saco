@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MesaActualizada;
 use App\Models\Sala;
 use App\Truco\Accion;
 use App\Truco\AccionInvalida;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class SalaController extends Controller
 {
@@ -64,6 +66,7 @@ class SalaController extends Controller
         }
 
         $request->session()->put($this->claveAsiento($sala), 1);
+        $this->avisar($sala);
 
         return redirect()->route('salas.ver', $sala);
     }
@@ -81,7 +84,7 @@ class SalaController extends Controller
             'carta' => ['nullable', 'string', 'max:12'],
         ]);
 
-        return DB::transaction(function () use ($sala, $jugador, $datos) {
+        $respuesta = DB::transaction(function () use ($sala, $jugador, $datos) {
             $sala = Sala::whereKey($sala->id)->lockForUpdate()->firstOrFail();
 
             if (! $sala->completa()) {
@@ -101,13 +104,15 @@ class SalaController extends Controller
 
             return response()->json($sala->vistaPara($jugador));
         });
+
+        return $this->avisarSiSalioBien($respuesta, $sala);
     }
 
     public function revancha(Request $request, Sala $sala): JsonResponse
     {
         $jugador = $this->asientoObligatorio($request, $sala);
 
-        return DB::transaction(function () use ($sala, $jugador) {
+        $respuesta = DB::transaction(function () use ($sala, $jugador) {
             $sala = Sala::whereKey($sala->id)->lockForUpdate()->firstOrFail();
             $anterior = $sala->partida();
 
@@ -120,6 +125,30 @@ class SalaController extends Controller
 
             return response()->json($sala->vistaPara($jugador));
         });
+
+        return $this->avisarSiSalioBien($respuesta, $sala);
+    }
+
+    private function avisarSiSalioBien(JsonResponse $respuesta, Sala $sala): JsonResponse
+    {
+        if ($respuesta->isSuccessful()) {
+            $this->avisar($sala);
+        }
+
+        return $respuesta;
+    }
+
+    /**
+     * Le avisa al rival por Reverb. Si Reverb no está corriendo la jugada
+     * igual vale: la pantalla también pregunta el estado cada tanto.
+     */
+    private function avisar(Sala $sala): void
+    {
+        try {
+            MesaActualizada::dispatch($sala->codigo);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function claveAsiento(Sala $sala): string

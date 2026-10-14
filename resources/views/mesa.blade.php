@@ -48,7 +48,7 @@
 @endpush
 
 @section('contenido')
-<div x-data="mesa(@js(route('salas.estado', $sala)), @js(route('salas.accion', $sala)), @js(route('salas.revancha', $sala)))" x-init="iniciar()" x-cloak>
+<div x-data="mesa(@js($sala->codigo), @js(route('salas.estado', $sala)), @js(route('salas.accion', $sala)), @js(route('salas.revancha', $sala)))" x-init="iniciar()" x-cloak>
     <template x-if="v">
         <div>
             <div class="panel invitar" x-show="v.esperandoRival">
@@ -67,7 +67,9 @@
                 </div>
                 <div class="ayuda" style="color:inherit;opacity:.7;text-align:center">
                     a <span x-text="v.objetivo"></span><br>
-                    <span x-text="v.conFlor ? 'con flor' : 'sin flor'"></span>
+                    <span x-text="v.conFlor ? 'con flor' : 'sin flor'"></span><br>
+                    <span :title="enVivo ? 'Conectado en vivo' : 'Sin conexión en vivo: se actualiza cada 5 segundos'"
+                          x-text="enVivo ? '● en vivo' : '○ sin vivo'"></span>
                 </div>
                 <div style="text-align:right">
                     <div class="nombre" x-text="(v.nombres.rival ?? 'Esperando…') + (!v.soyMano && v.nombres.rival ? ' (mano)' : '')"></div>
@@ -132,7 +134,7 @@
 </div>
 
 <script>
-    function mesa(urlEstado, urlAccion, urlRevancha) {
+    function mesa(codigo, urlEstado, urlAccion, urlRevancha) {
         const csrf = document.querySelector('meta[name=csrf-token]').content;
 
         return {
@@ -140,11 +142,25 @@
             error: '',
             enviando: false,
             copiado: false,
+            enVivo: false,
 
             iniciar() {
                 this.actualizar();
-                // En el paso 3 esto se reemplaza por Reverb.
-                setInterval(() => { if (!this.enviando) this.actualizar(); }, 1500);
+                this.escuchar();
+                // Por las dudas: si Reverb no anda, igual se actualiza cada tanto.
+                setInterval(() => { if (!this.enviando) this.actualizar(); }, 5000);
+            },
+
+            escuchar() {
+                if (!window.Echo) return;
+                window.Echo.channel(`sala.${codigo}`).listen('.mesa.actualizada', () => this.actualizar());
+                const conexion = window.Echo.connector.pusher.connection;
+                this.enVivo = conexion.state === 'connected';
+                conexion.bind('state_change', ({ current }) => {
+                    const volvio = current === 'connected' && !this.enVivo;
+                    this.enVivo = current === 'connected';
+                    if (volvio) this.actualizar();
+                });
             },
 
             async actualizar() {

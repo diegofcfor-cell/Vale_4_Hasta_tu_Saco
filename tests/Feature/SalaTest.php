@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Events\MesaActualizada;
 use App\Models\Sala;
 use App\Truco\Partida;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 use Tests\Unit\Truco\RepartidorFijo;
 
@@ -143,6 +145,41 @@ class SalaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('puntos', ['yo' => 0, 'rival' => 0])
             ->assertJsonPath('terminada', false);
+    }
+
+    public function test_cada_jugada_avisa_por_reverb_y_las_invalidas_no(): void
+    {
+        Event::fake([MesaActualizada::class]);
+        $sala = $this->sala();
+
+        $this->comoJugador($sala, 1)
+            ->postJson(route('salas.accion', $sala), ['accion' => 'truco'])
+            ->assertStatus(422);
+        Event::assertNotDispatched(MesaActualizada::class);
+
+        $this->comoJugador($sala, 0)
+            ->postJson(route('salas.accion', $sala), ['accion' => 'truco'])
+            ->assertOk();
+        Event::assertDispatched(MesaActualizada::class, fn ($e) => $e->codigo === $sala->codigo);
+    }
+
+    public function test_avisa_cuando_entra_el_rival(): void
+    {
+        Event::fake([MesaActualizada::class]);
+        $sala = $this->sala(conRival: false);
+
+        $this->post(route('salas.unirse', $sala), ['nombre' => 'Juan']);
+
+        Event::assertDispatchedTimes(MesaActualizada::class, 1);
+    }
+
+    public function test_el_aviso_va_por_un_canal_publico_sin_datos_de_la_partida(): void
+    {
+        $evento = new MesaActualizada('abc12345');
+
+        $this->assertSame('sala.abc12345', $evento->broadcastOn()->name);
+        $this->assertSame('mesa.actualizada', $evento->broadcastAs());
+        $this->assertSame([], $evento->broadcastWith());
     }
 
     private function sala(bool $conRival = true): Sala
