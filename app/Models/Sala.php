@@ -74,6 +74,11 @@ class Sala extends Model
         $carta = fn (?Carta $c) => $c === null ? null : ['id' => $c->id(), 'numero' => $c->numero, 'palo' => $c->palo->value];
         $quien = fn (?int $j) => $j === null ? null : ($j === $yo ? 'yo' : 'rival');
         $pendiente = $partida->pendiente();
+        $mesa = fn (array $bazas) => array_map(fn (array $baza) => [
+            'yo' => $carta($baza[$yo] ?? null),
+            'rival' => $carta($baza[$rival] ?? null),
+        ], $bazas);
+        $ultimaMano = $partida->ultimaMano();
 
         return [
             'codigo' => $this->codigo,
@@ -88,11 +93,14 @@ class Sala extends Model
             'turno' => $quien($partida->turno()),
             'misCartas' => array_map($carta, $partida->cartasDe($yo)),
             'cartasRival' => count($partida->cartasDe($rival)),
-            'mesa' => array_map(fn (array $baza) => [
-                'yo' => $carta($baza[$yo] ?? null),
-                'rival' => $carta($baza[$rival] ?? null),
-            ], $partida->mesa()),
+            'mesa' => $mesa($partida->mesa()),
             'bazas' => array_map(fn (?int $g) => $quien($g) ?? 'parda', $partida->bazas()),
+            // La mesa de la mano anterior, para mostrar unos segundos cómo terminó.
+            'manoAnterior' => $ultimaMano === null ? null : [
+                'numero' => $ultimaMano['numero'],
+                'mesa' => $mesa($ultimaMano['mesa']),
+                'bazas' => array_map(fn (?int $g) => $quien($g) ?? 'parda', $ultimaMano['bazas']),
+            ],
             'pendiente' => $pendiente === null ? null : [
                 'tipo' => $pendiente['tipo'],
                 'respondo' => $pendiente['responde'] === $yo,

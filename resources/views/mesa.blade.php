@@ -51,6 +51,24 @@
     .chat .escribir { display: flex; gap: 8px; }
     .final { text-align: center; }
     .final h2 { margin-top: 0; }
+    .palitos { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .palitos .bloque { display: flex; align-items: center; gap: 6px; }
+    .palitos .etiqueta { font-size: .65rem; opacity: .7; width: 3.2em; }
+    .palitos svg { display: block; }
+    .derecha .palitos .bloque { flex-direction: row-reverse; }
+    .derecha .palitos .etiqueta { text-align: right; }
+    .avisos {
+        position: fixed; top: 40%; left: 50%; transform: translateX(-50%); z-index: 10;
+        display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; width: max-content; max-width: calc(100% - 32px);
+    }
+    .aviso-mesa {
+        background: var(--papel); color: var(--tinta); border-radius: 999px; padding: 8px 16px;
+        font-weight: 700; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); text-align: center; animation: aparecer .2s ease-out;
+    }
+    .aviso-mesa.canto { background: #f3dc9b; font-size: 1.1rem; }
+    .aviso-mesa.puntos { background: #fff; border: 2px solid #d9a521; }
+    @keyframes aparecer { from { opacity: 0; transform: translateY(-8px); } }
+    .mesa.anterior { outline: 2px dashed rgba(255, 255, 255, .35); outline-offset: 6px; border-radius: 8px; }
     .sonido { background: none; border: 0; padding: 0; color: inherit; font-size: 1.1rem; cursor: pointer; }
     @media (max-width: 480px) {
         main { padding: 12px; }
@@ -77,10 +95,17 @@
                 <p class="ayuda">La partida empieza cuando entre.</p>
             </div>
 
+            <div class="avisos" aria-live="polite">
+                <template x-for="a in avisos" :key="a.id">
+                    <div class="aviso-mesa" :class="a.tipo" x-text="a.texto"></div>
+                </template>
+            </div>
+
             <div class="marcador">
                 <div>
                     <div class="nombre" x-text="v.nombres.yo + (v.soyMano ? ' (mano)' : '')"></div>
                     <div class="puntos" x-text="v.puntos.yo"></div>
+                    <div class="palitos" x-html="palitos(v.puntos.yo)"></div>
                 </div>
                 <div class="ayuda" style="color:inherit;opacity:.7;text-align:center">
                     a <span x-text="v.objetivo"></span><br>
@@ -90,9 +115,10 @@
                     <button type="button" class="sonido" @click="alternarSonido()"
                             :title="sonido ? 'Silenciar los cantos' : 'Escuchar los cantos'" x-text="sonido ? '🔊' : '🔇'"></button>
                 </div>
-                <div style="text-align:right">
+                <div class="derecha" style="text-align:right">
                     <div class="nombre" x-text="(v.nombres.rival ?? 'Esperando…') + (!v.soyMano && v.nombres.rival ? ' (mano)' : '')"></div>
                     <div class="puntos" x-text="v.puntos.rival"></div>
+                    <div class="palitos" x-html="palitos(v.puntos.rival)"></div>
                 </div>
             </div>
 
@@ -111,12 +137,12 @@
                     </template>
                 </div>
 
-                <div class="mesa">
+                <div class="mesa" :class="{ anterior: verAnterior }">
                     <template x-for="i in [0, 1, 2]" :key="'b' + i">
                         <div class="baza">
-                            <div x-html="dibujar(v.mesa[i]?.rival)"></div>
-                            <div x-html="dibujar(v.mesa[i]?.yo)"></div>
-                            <div class="resultado" x-text="resultado(v.bazas[i])"></div>
+                            <div x-html="dibujar(mesaVisible().mesa[i]?.rival)"></div>
+                            <div x-html="dibujar(mesaVisible().mesa[i]?.yo)"></div>
+                            <div class="resultado" x-text="resultado(mesaVisible().bazas[i])"></div>
                         </div>
                     </template>
                 </div>
@@ -126,7 +152,7 @@
                 <div class="fila">
                     <template x-for="c in v.misCartas" :key="c.id">
                         <button type="button" class="carta" :class="c.palo + (conImagenes ? ' con-imagen' : '')"
-                                :disabled="!puede('jugar_carta') || enviando"
+                                :disabled="!puede('jugar_carta') || enviando || verAnterior"
                                 @click="hacer('jugar_carta', c.id)" :title="c.numero + ' de ' + c.palo"
                                 x-html="caraDe(c)">
                         </button>
@@ -136,7 +162,7 @@
                 <div class="acciones">
                     <template x-for="a in v.acciones.filter(a => a.accion !== 'jugar_carta')" :key="a.accion">
                         <button type="button" :class="{ secundaria: a.accion === 'irse_al_mazo' || a.accion === 'no_quiero' }"
-                                :disabled="enviando" @click="hacer(a.accion)" x-text="a.etiqueta"></button>
+                                :disabled="enviando || verAnterior" @click="hacer(a.accion)" x-text="a.etiqueta"></button>
                     </template>
                 </div>
             </div>
@@ -206,6 +232,9 @@
             texto: '',
             ultimoMensaje: null,
             ultimoEvento: null,
+            avisos: [],
+            verAnterior: false,
+            relojAnterior: null,
             conImagenes: false,
             sonido: (() => { try { return localStorage.getItem('truco.sonido') !== '0'; } catch { return true; } })(),
 
@@ -237,8 +266,16 @@
             },
 
             poner(v) {
+                const antes = this.v;
                 this.v = v;
-                this.oirCantos(v.eventos);
+                this.procesarEventos(v.eventos);
+                // Terminó una mano: dejamos ver unos segundos cómo quedó la mesa.
+                const anterior = v.manoAnterior;
+                if (antes && anterior && v.numeroMano !== antes.numeroMano && anterior.numero === antes.numeroMano && anterior.mesa.length) {
+                    this.verAnterior = true;
+                    clearTimeout(this.relojAnterior);
+                    this.relojAnterior = setTimeout(() => this.verAnterior = false, 4000);
+                }
                 const ultimo = v.chat.at(-1)?.id ?? null;
                 if (ultimo !== this.ultimoMensaje) {
                     this.ultimoMensaje = ultimo;
@@ -313,12 +350,14 @@
                 if (!this.sonido) window.speechSynthesis?.cancel();
             },
 
-            // Hace sonar lo que se canta en la mesa (de los dos jugadores) con la voz del navegador.
-            oirCantos(eventos) {
+            // Lo nuevo que pasó en la mesa: aparece como aviso unos segundos y los cantos se escuchan.
+            procesarEventos(eventos) {
                 const nuevos = eventos.filter(e => e.n > this.ultimoEvento);
                 const primeraVez = this.ultimoEvento === null;
                 this.ultimoEvento = Math.max(this.ultimoEvento ?? 0, ...eventos.map(e => e.n));
-                if (primeraVez || !this.sonido || !('speechSynthesis' in window)) return;
+                if (primeraVez) return;
+                nuevos.forEach(e => this.avisar(e));
+                if (!this.sonido || !('speechSynthesis' in window)) return;
                 for (const e of nuevos.filter(e => e.canto)) {
                     const frase = new SpeechSynthesisUtterance(e.texto.replace(/[¡!¿?«»]/g, ''));
                     const voz = elegirVoz();
@@ -330,6 +369,45 @@
                 }
             },
 
+            avisar(e) {
+                const quien = e.quien ?? '';
+                const suma = e.texto.match(/^suma (\d+) (.*)$/);
+                let aviso = null;
+                if (e.canto) aviso = { tipo: 'canto', texto: `${quien}: ${e.texto}` };
+                else if (suma) aviso = { tipo: 'puntos', texto: `${quien} gana ${suma[1]} ${suma[1] === '1' ? 'punto' : 'puntos'} ${suma[2]}` };
+                else if (e.texto === 'gana la baza') aviso = { tipo: '', texto: `${quien} gana la baza` };
+                else if (e.texto === 'gana la partida') aviso = { tipo: 'puntos', texto: `¡${quien} gana la partida!` };
+                else if (e.texto === 'Parda' || e.quien === null) aviso = { tipo: '', texto: e.texto };
+                if (!aviso) return;
+                aviso.id = e.n;
+                this.avisos = [...this.avisos, aviso].slice(-4);
+                setTimeout(() => this.avisos = this.avisos.filter(a => a.id !== aviso.id), aviso.tipo === 'puntos' ? 4000 : 3000);
+            },
+
+            mesaVisible() {
+                return this.verAnterior && this.v.manoAnterior ? this.v.manoAnterior : this.v;
+            },
+
+            // El tanteador con palitos: cada cuadrado con su diagonal son 5 puntos;
+            // a 30 se cuentan 15 malas y 15 buenas.
+            palitos(puntos) {
+                const L = 18, G = 5, P = 2;
+                const bloques = this.v.objetivo === 30 ? ['malas', 'buenas'] : [''];
+                return bloques.map((nombre, b) => {
+                    const enBloque = Math.max(0, Math.min(15, puntos - 15 * b));
+                    let rayas = '';
+                    for (let c = 0; c < 3; c++) {
+                        const k = Math.max(0, Math.min(5, enBloque - 5 * c));
+                        const x = P + c * (L + G), y = P;
+                        const lineas = [[x, y, x, y + L], [x, y, x + L, y], [x + L, y, x + L, y + L], [x, y + L, x + L, y + L], [x, y + L, x + L, y]];
+                        rayas += lineas.slice(0, k).map(([x1, y1, x2, y2]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`).join('');
+                    }
+                    const ancho = 2 * P + 3 * L + 2 * G;
+                    const svg = `<svg width="${ancho}" height="${L + 2 * P}" viewBox="0 0 ${ancho} ${L + 2 * P}" stroke="#f4efe0" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">${rayas}</svg>`;
+                    return `<div class="bloque">${nombre ? `<span class="etiqueta">${nombre}</span>` : ''}${svg}</div>`;
+                }).join('');
+            },
+
             resultado(r) {
                 return { yo: 'Ganaste', rival: 'Perdiste', parda: 'Parda' }[r] ?? '';
             },
@@ -337,6 +415,7 @@
             mensaje() {
                 const v = this.v;
                 if (v.esperandoRival) return 'Esperando a tu rival…';
+                if (this.verAnterior) return 'Así terminó la mano';
                 if (v.pendiente?.respondo) return 'Te cantaron: ¿qué respondés?';
                 if (v.pendiente) return `Esperando la respuesta de ${v.nombres.rival}…`;
                 if (v.turno === 'yo') return 'Te toca';

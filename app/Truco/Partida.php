@@ -79,6 +79,13 @@ final class Partida
 
     private int $contadorEventos = 0;
 
+    /**
+     * Cómo quedó la mesa de la mano que se acaba de jugar, para mostrarla un ratito.
+     *
+     * @var array{numero: int, mesa: list<array<int, Carta>>, bazas: list<int|null>}|null
+     */
+    private ?array $ultimaMano = null;
+
     private function __construct(
         private readonly int $objetivo,
         private readonly bool $conFlor,
@@ -561,6 +568,7 @@ final class Partida
     private function terminarMano(int $ganador, int $puntos): void
     {
         $this->pendiente = null;
+        $this->ultimaMano = ['numero' => $this->numeroMano, 'mesa' => $this->mesa, 'bazas' => $this->bazas];
         $this->sumar($ganador, $puntos, 'por la mano');
 
         if (! $this->terminada()) {
@@ -681,6 +689,12 @@ final class Partida
         return $this->ganador;
     }
 
+    /** @return array{numero: int, mesa: list<array<int, Carta>>, bazas: list<int|null>}|null */
+    public function ultimaMano(): ?array
+    {
+        return $this->ultimaMano;
+    }
+
     /** @return list<array{n: int, mano: int, jugador: int|null, texto: string, canto: bool}> */
     public function eventos(): array
     {
@@ -722,6 +736,11 @@ final class Partida
             'ganador' => $this->ganador,
             'eventos' => $this->eventos,
             'contador_eventos' => $this->contadorEventos,
+            'ultima_mano' => $this->ultimaMano === null ? null : [
+                'numero' => $this->ultimaMano['numero'],
+                'mesa' => array_map($ids, $this->ultimaMano['mesa']),
+                'bazas' => $this->ultimaMano['bazas'],
+            ],
         ];
     }
 
@@ -755,6 +774,12 @@ final class Partida
         // Las partidas guardadas antes de numerar los eventos arrancan de cero.
         $partida->eventos = array_map(fn (array $e) => $e + ['n' => 0, 'canto' => false], $datos['eventos']);
         $partida->contadorEventos = $datos['contador_eventos'] ?? 0;
+        $ultima = $datos['ultima_mano'] ?? null;
+        $partida->ultimaMano = $ultima === null ? null : [
+            'numero' => $ultima['numero'],
+            'mesa' => array_map($cartas, $ultima['mesa']),
+            'bazas' => $ultima['bazas'],
+        ];
 
         return $partida;
     }
