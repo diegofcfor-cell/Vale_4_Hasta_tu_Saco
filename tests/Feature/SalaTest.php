@@ -182,6 +182,56 @@ class SalaTest extends TestCase
         $this->assertSame([], $evento->broadcastWith());
     }
 
+    public function test_el_chat_llega_a_los_dos_jugadores(): void
+    {
+        Event::fake([MesaActualizada::class]);
+        $sala = $this->sala();
+
+        $this->comoJugador($sala, 0)
+            ->postJson(route('salas.mensaje', $sala), ['texto' => '¿Tenés el ancho?'])
+            ->assertOk()
+            ->assertJsonPath('chat.0.texto', '¿Tenés el ancho?')
+            ->assertJsonPath('chat.0.mio', true);
+
+        $this->comoJugador($sala, 1)
+            ->getJson(route('salas.estado', $sala))
+            ->assertJsonPath('chat.0.mio', false)
+            ->assertJsonPath('chat.0.nombre', 'Diego');
+
+        Event::assertDispatched(MesaActualizada::class);
+    }
+
+    public function test_el_chat_muestra_los_ultimos_treinta_en_orden(): void
+    {
+        $sala = $this->sala();
+        foreach (range(1, 35) as $n) {
+            $sala->mensajes()->create(['jugador' => $n % 2, 'texto' => "mensaje {$n}"]);
+        }
+
+        $chat = $this->comoJugador($sala, 0)->getJson(route('salas.estado', $sala))->json('chat');
+
+        $this->assertCount(30, $chat);
+        $this->assertSame('mensaje 6', $chat[0]['texto']);
+        $this->assertSame('mensaje 35', $chat[29]['texto']);
+    }
+
+    public function test_el_chat_valida_el_texto_y_el_asiento(): void
+    {
+        $sala = $this->sala();
+
+        $this->comoJugador($sala, 0)->postJson(route('salas.mensaje', $sala), ['texto' => '   '])->assertStatus(422);
+        $this->comoJugador($sala, 0)->postJson(route('salas.mensaje', $sala), ['texto' => str_repeat('a', 201)])->assertStatus(422);
+        $this->flushSession()->postJson(route('salas.mensaje', $sala), ['texto' => 'hola'])->assertForbidden();
+        $this->assertSame(0, $sala->mensajes()->count());
+    }
+
+    public function test_la_mesa_ofrece_las_frases_del_truco(): void
+    {
+        $sala = $this->sala();
+
+        $this->comoJugador($sala, 0)->get(route('salas.ver', $sala))->assertOk()->assertSee('Son buenas');
+    }
+
     private function sala(bool $conRival = true): Sala
     {
         $partida = Partida::nueva(15, true, new RepartidorFijo([

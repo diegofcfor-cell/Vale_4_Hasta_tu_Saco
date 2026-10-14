@@ -6,6 +6,7 @@ use App\Truco\Accion;
 use App\Truco\Carta;
 use App\Truco\Partida;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
@@ -35,6 +36,11 @@ class Sala extends Model
             'jugador0' => $nombre,
             'estado' => Partida::nueva($objetivo, $conFlor)->toArray(),
         ]);
+    }
+
+    public function mensajes(): HasMany
+    {
+        return $this->hasMany(Mensaje::class);
     }
 
     public function partida(): Partida
@@ -98,6 +104,13 @@ class Sala extends Model
                 'quien' => $e['jugador'] === null ? null : $this->nombreDe($e['jugador']),
                 'texto' => $e['texto'],
             ], array_slice($partida->eventos(), -12)),
+            'chat' => $this->mensajes()->latest('id')->limit(30)->get()->reverse()->values()
+                ->map(fn (Mensaje $m) => [
+                    'id' => $m->id,
+                    'mio' => $m->jugador === $yo,
+                    'nombre' => $this->nombreDe($m->jugador),
+                    'texto' => $m->texto,
+                ])->all(),
             'terminada' => $partida->terminada(),
             'gane' => $partida->terminada() ? $partida->ganador() === $yo : null,
         ];

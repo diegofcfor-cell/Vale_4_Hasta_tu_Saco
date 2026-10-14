@@ -7,7 +7,7 @@ Truco argentino para dos jugadores, hecho con Laravel 12. Cada jugador juega des
 1. **Reglas del juego** ✅: mazo, bazas, truco, envido y flor, con tests.
 2. **Sala con link para invitar** ✅: crear partida, compartir el link y que cada jugador vea solo sus cartas.
 3. **Tiempo real con Reverb y túnel** ✅: las jugadas llegan al instante y el link funciona desde cualquier casa (Cloudflare Tunnel).
-4. **Chat con frases del truco**: "¡Quiero!", "Son buenas", "Mazo"...
+4. **Chat con frases del truco** ✅: frases típicas con un toque ("Son buenas", "¡Mentira!", "¿Tenés el ancho?"...) o texto libre.
 
 ## Cómo correrlo
 
@@ -77,6 +77,7 @@ La parte web:
 | `app/Models/Sala.php` | Una mesa: los dos nombres y la partida guardada como JSON. `vistaPara()` arma lo que ve cada jugador, sin las cartas del rival |
 | `app/Http/Controllers/SalaController.php` | Crear mesa, entrar con el link, ver el estado, jugar y pedir revancha |
 | `resources/views/mesa.blade.php` | La mesa en pantalla, con Alpine.js. Escucha a Reverb y pide el estado cuando hay novedades |
+| `app/Models/Mensaje.php` | Los mensajes del chat y la lista de frases predeterminadas (`Mensaje::FRASES`, cambialas a gusto) |
 | `app/Events/MesaActualizada.php` | El aviso que se manda por Reverb después de cada jugada |
 | `resources/js/echo.js` | Conecta Laravel Echo con Reverb por el mismo puerto de la página |
 | `tunel/proxy.mjs` | Junta web y WebSocket en el puerto 8888 para usar un solo túnel |

@@ -37,6 +37,13 @@
     .eventos { background: var(--pano-oscuro); border-radius: 12px; padding: 12px 16px; font-size: .9rem; }
     .eventos ul { margin: 0; padding-left: 18px; }
     .aviso { background: var(--peligro); color: white; border-radius: 8px; padding: 8px 12px; text-align: center; margin-bottom: 12px; }
+    .chat { background: var(--papel); color: var(--tinta); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
+    .chat .mensajes { max-height: 220px; overflow-y: auto; margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
+    .chat .mensaje { align-self: flex-start; background: #ece6d6; border-radius: 10px; padding: 6px 10px; max-width: 85%; overflow-wrap: anywhere; }
+    .chat .mensaje.mio { align-self: flex-end; background: #f3dc9b; }
+    .chat .frases { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .chat .frases button { font-size: .85rem; padding: 6px 10px; background: #ece6d6; font-weight: 500; }
+    .chat .escribir { display: flex; gap: 8px; }
     .final { text-align: center; }
     .final h2 { margin-top: 0; }
     @media (max-width: 420px) {
@@ -48,7 +55,7 @@
 @endpush
 
 @section('contenido')
-<div x-data="mesa(@js($sala->codigo), @js(route('salas.estado', $sala)), @js(route('salas.accion', $sala)), @js(route('salas.revancha', $sala)))" x-init="iniciar()" x-cloak>
+<div x-data="mesa(@js($sala->codigo), @js(route('salas.estado', $sala)), @js(route('salas.accion', $sala)), @js(route('salas.revancha', $sala)), @js(route('salas.mensaje', $sala)), @js(\App\Models\Mensaje::FRASES))" x-init="iniciar()" x-cloak>
     <template x-if="v">
         <div>
             <div class="panel invitar" x-show="v.esperandoRival">
@@ -121,6 +128,30 @@
                 </div>
             </div>
 
+            <div class="chat">
+                <strong>Chat</strong>
+                <div class="mensajes" x-ref="mensajes">
+                    <template x-if="v.chat.length === 0">
+                        <p class="ayuda" style="margin:0">Todavía no hay mensajes.</p>
+                    </template>
+                    <template x-for="m in v.chat" :key="m.id">
+                        <div class="mensaje" :class="{ mio: m.mio }">
+                            <strong x-text="m.mio ? 'Vos' : m.nombre"></strong>
+                            <span x-text="m.texto"></span>
+                        </div>
+                    </template>
+                </div>
+                <div class="frases">
+                    <template x-for="f in frases" :key="f">
+                        <button type="button" :disabled="enviando" @click="decir(f)" x-text="f"></button>
+                    </template>
+                </div>
+                <form class="escribir" @submit.prevent="decir(texto)">
+                    <input type="text" x-model="texto" maxlength="200" placeholder="Escribí algo…" aria-label="Mensaje">
+                    <button type="submit" :disabled="enviando || !texto.trim()">Enviar</button>
+                </form>
+            </div>
+
             <div class="eventos">
                 <strong>En la mesa</strong>
                 <ul>
@@ -134,7 +165,7 @@
 </div>
 
 <script>
-    function mesa(codigo, urlEstado, urlAccion, urlRevancha) {
+    function mesa(codigo, urlEstado, urlAccion, urlRevancha, urlMensaje, frases) {
         const csrf = document.querySelector('meta[name=csrf-token]').content;
 
         return {
@@ -143,6 +174,9 @@
             enviando: false,
             copiado: false,
             enVivo: false,
+            frases,
+            texto: '',
+            ultimoMensaje: null,
 
             iniciar() {
                 this.actualizar();
@@ -165,7 +199,19 @@
 
             async actualizar() {
                 const r = await fetch(urlEstado, { headers: { Accept: 'application/json' } });
-                if (r.ok) this.v = await r.json();
+                if (r.ok) this.poner(await r.json());
+            },
+
+            poner(v) {
+                this.v = v;
+                const ultimo = v.chat.at(-1)?.id ?? null;
+                if (ultimo !== this.ultimoMensaje) {
+                    this.ultimoMensaje = ultimo;
+                    this.$nextTick(() => {
+                        const caja = this.$refs.mensajes;
+                        if (caja) caja.scrollTop = caja.scrollHeight;
+                    });
+                }
             },
 
             async enviar(url, cuerpo) {
@@ -178,8 +224,9 @@
                         body: JSON.stringify(cuerpo),
                     });
                     const datos = await r.json();
-                    if (r.ok) this.v = datos;
+                    if (r.ok) this.poner(datos);
                     else this.error = datos.error ?? datos.message ?? 'Algo salió mal.';
+                    return r.ok;
                 } catch {
                     this.error = 'No hay conexión con la mesa.';
                 } finally {
@@ -189,6 +236,11 @@
 
             hacer(accion, carta = null) {
                 this.enviar(urlAccion, { accion, carta });
+            },
+
+            async decir(texto) {
+                if (!texto.trim()) return;
+                if (await this.enviar(urlMensaje, { texto })) this.texto = '';
             },
 
             revancha() {
