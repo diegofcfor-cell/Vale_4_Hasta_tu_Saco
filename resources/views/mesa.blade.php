@@ -26,6 +26,7 @@
     .carta.copa { border-color: var(--copa); } .carta.copa .numero { color: var(--copa); }
     .carta.con-imagen { border: 0; background: #fff; }
     .carta.dorso { width: 52px; height: 78px; background: repeating-linear-gradient(45deg, #7a2e2e, #7a2e2e 6px, #8e3a3a 6px, #8e3a3a 12px); }
+    .carta.dorso.con-imagen { background-size: cover; background-position: center; }
     .carta.vacia { background: transparent; overflow: visible; box-shadow: none; border: 2px dashed rgba(255, 255, 255, .25); }
     button.carta { padding: 0; font: inherit; cursor: pointer; }
     button.carta:disabled { opacity: .8; }
@@ -105,7 +106,8 @@
             <div x-show="!v.terminada">
                 <div class="fila rival">
                     <template x-for="i in v.cartasRival" :key="'r' + i">
-                        <div class="carta dorso"></div>
+                        <div class="carta dorso" :class="conImagenes ? 'con-imagen' : ''"
+                             :style="conImagenes ? `background-image: url(${urlCartas}/dorso.png)` : ''"></div>
                     </template>
                 </div>
 
