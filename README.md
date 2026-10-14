@@ -4,8 +4,8 @@ Truco argentino para dos jugadores, hecho con Laravel 12. Cada jugador juega des
 
 ## Plan
 
-1. **Reglas del juego** (este paso): mazo, bazas, truco, envido y flor, con tests.
-2. **Sala con link para invitar**: crear partida, compartir el link y que cada jugador vea solo sus cartas.
+1. **Reglas del juego** ✅: mazo, bazas, truco, envido y flor, con tests.
+2. **Sala con link para invitar** ✅: crear partida, compartir el link y que cada jugador vea solo sus cartas.
 3. **Tiempo real con Reverb y túnel**: las jugadas llegan al instante y el link funciona desde cualquier casa (Cloudflare Tunnel).
 4. **Chat con frases del truco**: "¡Quiero!", "Son buenas", "Mazo"...
 
@@ -15,8 +15,15 @@ Truco argentino para dos jugadores, hecho con Laravel 12. Cada jugador juega des
 composer install
 cp .env.example .env
 php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
 php artisan test
+php artisan serve
 ```
+
+Abrí http://localhost:8000, creá una mesa y copiá el link para tu rival.
+
+Para probar solo, abrí el link en una ventana de incógnito: cada ventana es un jugador distinto. Para jugar con otra PC de tu misma red, levantá el servidor con `php artisan serve --host=0.0.0.0` y reemplazá `localhost` en el link por la IP de tu PC (la ves con `hostname -I`). Desde otra casa hace falta el túnel del paso 3.
 
 ## Dónde está cada cosa
 
@@ -30,7 +37,17 @@ Toda la lógica del juego está en `app/Truco/` y no depende de Laravel:
 | `Accion.php` | Todo lo que un jugador puede hacer o cantar |
 | `Partida.php` | La partida completa: turnos, bazas, cantos y puntos |
 
-Ejemplo de uso:
+La parte web:
+
+| Archivo | Qué hace |
+| --- | --- |
+| `app/Models/Sala.php` | Una mesa: los dos nombres y la partida guardada como JSON. `vistaPara()` arma lo que ve cada jugador, sin las cartas del rival |
+| `app/Http/Controllers/SalaController.php` | Crear mesa, entrar con el link, ver el estado, jugar y pedir revancha |
+| `resources/views/mesa.blade.php` | La mesa en pantalla, con Alpine.js. Por ahora pregunta el estado cada 1,5 segundos; en el paso 3 eso lo reemplaza Reverb |
+
+Cada navegador recuerda en qué asiento está con la sesión de Laravel, así que no hace falta registrarse.
+
+Ejemplo de uso de la lógica:
 
 ```php
 use App\Truco\Accion;
