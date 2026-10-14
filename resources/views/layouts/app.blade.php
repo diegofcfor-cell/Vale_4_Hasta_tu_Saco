@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('titulo', 'Vale 4 Hasta tu Saco')</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    <meta name="reverb-key" content="{{ config('broadcasting.connections.reverb.key') }}">
+    @vite('resources/js/app.js')
     <style>
         :root {
             --pano: #1f5f3a;

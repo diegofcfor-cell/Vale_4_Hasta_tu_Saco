@@ -6,24 +6,57 @@ Truco argentino para dos jugadores, hecho con Laravel 12. Cada jugador juega des
 
 1. **Reglas del juego** ✅: mazo, bazas, truco, envido y flor, con tests.
 2. **Sala con link para invitar** ✅: crear partida, compartir el link y que cada jugador vea solo sus cartas.
-3. **Tiempo real con Reverb y túnel**: las jugadas llegan al instante y el link funciona desde cualquier casa (Cloudflare Tunnel).
+3. **Tiempo real con Reverb y túnel** ✅: las jugadas llegan al instante y el link funciona desde cualquier casa (Cloudflare Tunnel).
 4. **Chat con frases del truco**: "¡Quiero!", "Son buenas", "Mazo"...
 
 ## Cómo correrlo
 
+La primera vez:
+
 ```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-touch database/database.sqlite
-php artisan migrate
-php artisan test
-php artisan serve
+composer run setup
 ```
 
-Abrí http://localhost:8000, creá una mesa y copiá el link para tu rival.
+Eso instala todo, crea el `.env`, la base de datos y compila el JavaScript. Si ya tenías un `.env` de antes, copiá a tu `.env` las líneas de Reverb del final de `.env.example` y poné `BROADCAST_CONNECTION=reverb`.
 
-Para probar solo, abrí el link en una ventana de incógnito: cada ventana es un jugador distinto. Para jugar con otra PC de tu misma red, levantá el servidor con `php artisan serve --host=0.0.0.0` y reemplazá `localhost` en el link por la IP de tu PC (la ves con `hostname -I`). Desde otra casa hace falta el túnel del paso 3.
+Cada vez que quieras jugar:
+
+```bash
+composer run mesa
+```
+
+Eso levanta tres cosas juntas: la web (`php artisan serve`, puerto 8000), Reverb (puerto 8080) y un proxy que las junta en **http://localhost:8888**. Entrá siempre por el 8888: arriba al medio de la mesa vas a ver "● en vivo" cuando Reverb está conectado.
+
+Para probar solo, abrí el link de invitación en una ventana de incógnito: cada ventana es un jugador distinto.
+
+## Jugar con alguien de otra casa
+
+Se usa un túnel gratis de Cloudflare, sin cuenta ni configurar el router.
+
+1. Instalá `cloudflared` una sola vez:
+
+   ```bash
+   wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+   sudo dpkg -i cloudflared-linux-amd64.deb
+   ```
+
+2. Con `composer run mesa` corriendo, en otra terminal:
+
+   ```bash
+   cloudflared tunnel --url http://localhost:8888
+   ```
+
+   Va a mostrar una dirección tipo `https://algo-raro.trycloudflare.com`.
+
+3. **Abrí vos esa dirección** (no localhost), creá la mesa y mandale el link a tu rival. El link sale con la dirección del túnel, así que funciona desde cualquier lado.
+
+La dirección cambia cada vez que levantás el túnel, y mientras esté abierto cualquiera con el link puede ver la portada. Cerralo con Ctrl+C cuando terminen.
+
+### Cómo funciona el tiempo real
+
+Cuando alguien juega, el servidor manda por Reverb un aviso vacío al canal `sala.{codigo}` y cada pantalla pide su propia vista. Así las cartas del rival nunca viajan por el WebSocket. Si Reverb se cae, la pantalla igual se actualiza sola cada 5 segundos.
+
+`tunel/proxy.mjs` existe porque un túnel gratis expone un solo puerto: manda las conexiones WebSocket a Reverb y todo lo demás a Laravel.
 
 ## Dónde está cada cosa
 
@@ -43,7 +76,10 @@ La parte web:
 | --- | --- |
 | `app/Models/Sala.php` | Una mesa: los dos nombres y la partida guardada como JSON. `vistaPara()` arma lo que ve cada jugador, sin las cartas del rival |
 | `app/Http/Controllers/SalaController.php` | Crear mesa, entrar con el link, ver el estado, jugar y pedir revancha |
-| `resources/views/mesa.blade.php` | La mesa en pantalla, con Alpine.js. Por ahora pregunta el estado cada 1,5 segundos; en el paso 3 eso lo reemplaza Reverb |
+| `resources/views/mesa.blade.php` | La mesa en pantalla, con Alpine.js. Escucha a Reverb y pide el estado cuando hay novedades |
+| `app/Events/MesaActualizada.php` | El aviso que se manda por Reverb después de cada jugada |
+| `resources/js/echo.js` | Conecta Laravel Echo con Reverb por el mismo puerto de la página |
+| `tunel/proxy.mjs` | Junta web y WebSocket en el puerto 8888 para usar un solo túnel |
 
 Cada navegador recuerda en qué asiento está con la sesión de Laravel, así que no hace falta registrarse.
 
