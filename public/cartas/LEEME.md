@@ -18,4 +18,6 @@ Las 40 cartas y el dorso (`dorso.png`) salen de recortar la imagen
 
 https://commons.wikimedia.org/wiki/File:Baraja_española_completa.png
 
-Licencia: la que figura en esa página (pendiente de confirmar al copiar el autor y la licencia acá).
+Autor: Basquetteur.
+
+Licencia: la que figura en esa página (pendiente de confirmar).
