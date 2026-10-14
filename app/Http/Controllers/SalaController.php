@@ -108,6 +108,17 @@ class SalaController extends Controller
         return $this->avisarSiSalioBien($respuesta, $sala);
     }
 
+    public function mensaje(Request $request, Sala $sala): JsonResponse
+    {
+        $jugador = $this->asientoObligatorio($request, $sala);
+        $datos = $request->validate(['texto' => ['required', 'string', 'max:200']]);
+
+        $sala->mensajes()->create(['jugador' => $jugador, 'texto' => trim($datos['texto'])]);
+        $this->avisar($sala);
+
+        return response()->json($sala->vistaPara($jugador));
+    }
+
     public function revancha(Request $request, Sala $sala): JsonResponse
     {
         $jugador = $this->asientoObligatorio($request, $sala);
