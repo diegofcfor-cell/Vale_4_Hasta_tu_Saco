@@ -45,6 +45,24 @@ class PartidaTest extends TestCase
         $this->assertCount(3, $this->p->cartasDe(0));
     }
 
+    public function test_la_mesa_de_la_mano_anterior_queda_guardada(): void
+    {
+        $this->partida([self::GANA_EL_CERO]);
+        $this->assertNull($this->p->ultimaMano());
+
+        $this->jugar(0, '1-espada');
+        $this->jugar(1, '5-oro');
+        $this->jugar(0, '1-basto');
+        $this->jugar(1, '6-basto');
+
+        $ultima = $this->p->ultimaMano();
+        $this->assertSame(1, $ultima['numero']);
+        $this->assertSame([0, 0], $ultima['bazas']);
+        $this->assertSame('1-basto', $ultima['mesa'][1][0]->id());
+        $this->assertSame('6-basto', $ultima['mesa'][1][1]->id());
+        $this->assertSame([], $this->p->mesa(), 'la mano nueva arranca con la mesa vacía');
+    }
+
     public function test_parda_en_primera_define_la_segunda(): void
     {
         $this->partida([[['3-espada', '4-copa', '5-oro'], ['3-oro', '1-espada', '6-basto']]]);

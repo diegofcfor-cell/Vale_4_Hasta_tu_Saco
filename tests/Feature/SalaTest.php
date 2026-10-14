@@ -93,6 +93,27 @@ class SalaTest extends TestCase
             ->assertJsonPath('mesa.0.yo.id', '1-espada');
     }
 
+    public function test_al_terminar_la_mano_cada_uno_ve_como_quedo_la_mesa(): void
+    {
+        $sala = $this->sala();
+        $this->assertNull($this->comoJugador($sala, 0)->getJson(route('salas.estado', $sala))->json('manoAnterior'));
+
+        foreach ([[0, '1-espada'], [1, '5-oro'], [0, '1-basto'], [1, '6-basto']] as [$jugador, $carta]) {
+            $this->comoJugador($sala, $jugador)
+                ->postJson(route('salas.accion', $sala), ['accion' => 'jugar_carta', 'carta' => $carta])
+                ->assertOk();
+        }
+
+        $this->comoJugador($sala, 1)
+            ->getJson(route('salas.estado', $sala))
+            ->assertJsonPath('numeroMano', 2)
+            ->assertJsonPath('mesa', [])
+            ->assertJsonPath('manoAnterior.numero', 1)
+            ->assertJsonPath('manoAnterior.mesa.0.yo.id', '5-oro')
+            ->assertJsonPath('manoAnterior.mesa.0.rival.id', '1-espada')
+            ->assertJsonPath('manoAnterior.bazas', ['rival', 'rival']);
+    }
+
     public function test_al_responder_un_truco_el_envido_se_ofrece_como_el_envido_esta_primero(): void
     {
         $sala = $this->sala();
