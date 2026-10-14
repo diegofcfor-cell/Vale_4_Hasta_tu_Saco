@@ -74,8 +74,10 @@ final class Partida
 
     private ?int $ganador = null;
 
-    /** @var list<array{mano: int, jugador: int|null, texto: string}> */
+    /** @var list<array{n: int, mano: int, jugador: int|null, texto: string, canto: bool}> */
     private array $eventos = [];
+
+    private int $contadorEventos = 0;
 
     private function __construct(
         private readonly int $objetivo,
@@ -337,24 +339,25 @@ final class Partida
         $this->trucoPropuesto = ($this->pendiente === null ? $this->trucoNivel : $this->trucoPropuesto) + 1;
         $this->trucoCantor = $jugador;
         $this->pendiente = ['tipo' => 'truco', 'responde' => 1 - $jugador];
-        $this->registrar($jugador, $accion->etiqueta());
+        $this->registrar($jugador, $accion->etiqueta(), canto: true);
     }
 
     private function cantarEnvido(int $jugador, Accion $accion): void
     {
         if ($this->pendiente !== null && $this->pendiente['tipo'] === 'truco') {
             $this->trucoSuspendido = true;
+            $this->registrar($jugador, '¡El envido está primero!', canto: true);
         }
 
         $this->envido[] = $accion;
         $this->envidoCantor = $jugador;
         $this->pendiente = ['tipo' => 'envido', 'responde' => 1 - $jugador];
-        $this->registrar($jugador, $accion->etiqueta());
+        $this->registrar($jugador, $accion->etiqueta(), canto: true);
     }
 
     private function cantarFlor(int $jugador): void
     {
-        $this->registrar($jugador, Accion::Flor->etiqueta());
+        $this->registrar($jugador, Accion::Flor->etiqueta(), canto: true);
 
         if ($this->pendiente !== null && $this->pendiente['tipo'] === 'envido') {
             $this->envido = [];
@@ -381,7 +384,7 @@ final class Partida
 
     private function responderFlor(int $jugador, Accion $accion): void
     {
-        $this->registrar($jugador, $accion->etiqueta());
+        $this->registrar($jugador, $accion->etiqueta(), canto: true);
 
         if ($accion === Accion::ConFlorMeAchico) {
             $this->sumar(1 - $jugador, self::PUNTOS_ACHICO, 'por la flor');
@@ -397,7 +400,7 @@ final class Partida
 
     private function quiero(int $jugador): void
     {
-        $this->registrar($jugador, Accion::Quiero->etiqueta());
+        $this->registrar($jugador, Accion::Quiero->etiqueta(), canto: true);
 
         match ($this->pendiente['tipo']) {
             'truco' => $this->aceptarTruco($jugador),
@@ -408,7 +411,7 @@ final class Partida
 
     private function noQuiero(int $jugador): void
     {
-        $this->registrar($jugador, Accion::NoQuiero->etiqueta());
+        $this->registrar($jugador, Accion::NoQuiero->etiqueta(), canto: true);
 
         if ($this->pendiente['tipo'] === 'truco') {
             $this->terminarMano($this->trucoCantor, $this->valorTruco($this->trucoPropuesto - 1));
@@ -519,7 +522,7 @@ final class Partida
             $puntos++;
         }
 
-        $this->registrar($jugador, Accion::IrseAlMazo->etiqueta());
+        $this->registrar($jugador, Accion::IrseAlMazo->etiqueta(), canto: true);
         $this->terminarMano(1 - $jugador, $puntos);
     }
 
@@ -587,9 +590,16 @@ final class Partida
         return Puntaje::tieneFlor($this->cartasIniciales[$jugador]);
     }
 
-    private function registrar(?int $jugador, string $texto): void
+    /** @param bool $canto lo que un jugador dice en voz alta (la pantalla lo hace sonar) */
+    private function registrar(?int $jugador, string $texto, bool $canto = false): void
     {
-        $this->eventos[] = ['mano' => $this->numeroMano, 'jugador' => $jugador, 'texto' => $texto];
+        $this->eventos[] = [
+            'n' => ++$this->contadorEventos,
+            'mano' => $this->numeroMano,
+            'jugador' => $jugador,
+            'texto' => $texto,
+            'canto' => $canto,
+        ];
         $this->eventos = array_slice($this->eventos, -self::MAX_EVENTOS);
     }
 
@@ -671,7 +681,7 @@ final class Partida
         return $this->ganador;
     }
 
-    /** @return list<array{mano: int, jugador: int|null, texto: string}> */
+    /** @return list<array{n: int, mano: int, jugador: int|null, texto: string, canto: bool}> */
     public function eventos(): array
     {
         return $this->eventos;
@@ -711,6 +721,7 @@ final class Partida
             'pendiente' => $this->pendiente,
             'ganador' => $this->ganador,
             'eventos' => $this->eventos,
+            'contador_eventos' => $this->contadorEventos,
         ];
     }
 
@@ -741,7 +752,9 @@ final class Partida
         $partida->florCerrado = $datos['flor_cerrado'];
         $partida->pendiente = $datos['pendiente'];
         $partida->ganador = $datos['ganador'];
-        $partida->eventos = $datos['eventos'];
+        // Las partidas guardadas antes de numerar los eventos arrancan de cero.
+        $partida->eventos = array_map(fn (array $e) => $e + ['n' => 0, 'canto' => false], $datos['eventos']);
+        $partida->contadorEventos = $datos['contador_eventos'] ?? 0;
 
         return $partida;
     }
