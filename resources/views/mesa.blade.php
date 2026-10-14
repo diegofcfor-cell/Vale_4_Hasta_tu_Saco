@@ -9,20 +9,24 @@
     .marcador .puntos { font-size: 1.8rem; font-weight: 700; }
     .marcador .nombre { font-size: .9rem; opacity: .85; }
     .estado { text-align: center; font-weight: 600; margin: 8px 0 12px; min-height: 1.5em; }
-    .fila { display: flex; justify-content: center; gap: 8px; min-height: 104px; align-items: center; }
+    .fila { display: flex; justify-content: center; gap: 8px; min-height: 130px; align-items: center; }
+    .fila.rival { min-height: 80px; }
     .carta {
-        width: 68px; height: 100px; border-radius: 8px; background: var(--papel); color: var(--tinta);
+        position: relative; overflow: hidden;
+        width: 84px; height: 126px; border-radius: 8px; background: var(--papel); color: var(--tinta);
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         box-shadow: 0 2px 4px rgba(0, 0, 0, .35); border: 3px solid transparent; user-select: none;
     }
-    .carta .numero { font-size: 1.7rem; font-weight: 700; line-height: 1; }
+    .carta img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .carta .numero { font-size: 2rem; font-weight: 700; line-height: 1; }
     .carta .palo { font-size: .75rem; margin-top: 6px; text-transform: capitalize; font-weight: 600; }
     .carta.espada { border-color: var(--espada); } .carta.espada .numero { color: var(--espada); }
     .carta.basto { border-color: var(--basto); } .carta.basto .numero { color: var(--basto); }
     .carta.oro { border-color: var(--oro); } .carta.oro .numero { color: var(--oro); }
     .carta.copa { border-color: var(--copa); } .carta.copa .numero { color: var(--copa); }
-    .carta.dorso { background: repeating-linear-gradient(45deg, #7a2e2e, #7a2e2e 6px, #8e3a3a 6px, #8e3a3a 12px); }
-    .carta.vacia { background: transparent; box-shadow: none; border: 2px dashed rgba(255, 255, 255, .25); }
+    .carta.con-imagen { border: 0; background: #fff; }
+    .carta.dorso { width: 52px; height: 78px; background: repeating-linear-gradient(45deg, #7a2e2e, #7a2e2e 6px, #8e3a3a 6px, #8e3a3a 12px); }
+    .carta.vacia { background: transparent; overflow: visible; box-shadow: none; border: 2px dashed rgba(255, 255, 255, .25); }
     button.carta { padding: 0; font: inherit; cursor: pointer; }
     button.carta:disabled { opacity: .8; }
     button.carta:not(:disabled):hover { transform: translateY(-6px); }
@@ -46,10 +50,15 @@
     .chat .escribir { display: flex; gap: 8px; }
     .final { text-align: center; }
     .final h2 { margin-top: 0; }
-    @media (max-width: 420px) {
-        .carta { width: 56px; height: 84px; }
-        .carta .numero { font-size: 1.4rem; }
-        .mesa { gap: 8px; }
+    .sonido { background: none; border: 0; padding: 0; color: inherit; font-size: 1.1rem; cursor: pointer; }
+    @media (max-width: 480px) {
+        main { padding: 12px; }
+        .carta { width: 76px; height: 114px; }
+        .carta .numero { font-size: 1.8rem; }
+        .carta.dorso { width: 44px; height: 66px; }
+        .fila { min-height: 118px; }
+        .fila.rival { min-height: 70px; }
+        .mesa { gap: 10px; }
     }
 </style>
 @endpush
@@ -76,7 +85,9 @@
                     a <span x-text="v.objetivo"></span><br>
                     <span x-text="v.conFlor ? 'con flor' : 'sin flor'"></span><br>
                     <span :title="enVivo ? 'Conectado en vivo' : 'Sin conexión en vivo: se actualiza cada 5 segundos'"
-                          x-text="enVivo ? '● en vivo' : '○ sin vivo'"></span>
+                          x-text="enVivo ? '● en vivo' : '○ sin vivo'"></span><br>
+                    <button type="button" class="sonido" @click="alternarSonido()"
+                            :title="sonido ? 'Silenciar los cantos' : 'Escuchar los cantos'" x-text="sonido ? '🔊' : '🔇'"></button>
                 </div>
                 <div style="text-align:right">
                     <div class="nombre" x-text="(v.nombres.rival ?? 'Esperando…') + (!v.soyMano && v.nombres.rival ? ' (mano)' : '')"></div>
@@ -92,7 +103,7 @@
             </div>
 
             <div x-show="!v.terminada">
-                <div class="fila">
+                <div class="fila rival">
                     <template x-for="i in v.cartasRival" :key="'r' + i">
                         <div class="carta dorso"></div>
                     </template>
@@ -112,10 +123,10 @@
 
                 <div class="fila">
                     <template x-for="c in v.misCartas" :key="c.id">
-                        <button type="button" class="carta" :class="c.palo" :disabled="!puede('jugar_carta') || enviando"
-                                @click="hacer('jugar_carta', c.id)" :title="c.numero + ' de ' + c.palo">
-                            <span class="numero" x-text="c.numero"></span>
-                            <span class="palo" x-text="c.palo"></span>
+                        <button type="button" class="carta" :class="c.palo + (conImagenes ? ' con-imagen' : '')"
+                                :disabled="!puede('jugar_carta') || enviando"
+                                @click="hacer('jugar_carta', c.id)" :title="c.numero + ' de ' + c.palo"
+                                x-html="caraDe(c)">
                         </button>
                     </template>
                 </div>
@@ -165,6 +176,21 @@
 </div>
 
 <script>
+    const urlCartas = @js(asset('cartas'));
+
+    // Elige una voz en español, mejor de Argentina o Latinoamérica y, si se puede, de hombre.
+    function elegirVoz() {
+        const voces = window.speechSynthesis?.getVoices() ?? [];
+        const espanol = voces.filter(v => v.lang.toLowerCase().startsWith('es'));
+        const hombre = /male|hombre|diego|jorge|tom[aá]s|juan|carlos|pablo|enrique|[aá]lvaro|ra[uú]l|miguel|andr[eé]s/i;
+        const orden = ['es-ar', 'es-419', 'es-us', 'es-mx', 'es-es'];
+        const puntaje = v => {
+            const i = orden.indexOf(v.lang.toLowerCase().replace('_', '-'));
+            return (i === -1 ? orden.length : i) * 2 - (hombre.test(v.name) ? 1 : 0);
+        };
+        return espanol.sort((a, b) => puntaje(a) - puntaje(b))[0] ?? null;
+    }
+
     function mesa(codigo, urlEstado, urlAccion, urlRevancha, urlMensaje, frases) {
         const csrf = document.querySelector('meta[name=csrf-token]').content;
 
@@ -177,10 +203,16 @@
             frases,
             texto: '',
             ultimoMensaje: null,
+            ultimoEvento: null,
+            conImagenes: false,
+            sonido: (() => { try { return localStorage.getItem('truco.sonido') !== '0'; } catch { return true; } })(),
 
             iniciar() {
                 this.actualizar();
                 this.escuchar();
+                const prueba = new Image();
+                prueba.onload = () => this.conImagenes = true;
+                prueba.src = `${urlCartas}/1-espada.png`;
                 // Por las dudas: si Reverb no anda, igual se actualiza cada tanto.
                 setInterval(() => { if (!this.enviando) this.actualizar(); }, 5000);
             },
@@ -204,6 +236,7 @@
 
             poner(v) {
                 this.v = v;
+                this.oirCantos(v.eventos);
                 const ultimo = v.chat.at(-1)?.id ?? null;
                 if (ultimo !== this.ultimoMensaje) {
                     this.ultimoMensaje = ultimo;
@@ -261,9 +294,38 @@
                 }
             },
 
+            // Si existe public/cartas/{numero}-{palo}.png se usa esa imagen; si no, la carta simple.
+            caraDe(c) {
+                if (this.conImagenes) return `<img src="${urlCartas}/${c.id}.png" alt="${c.numero} de ${c.palo}">`;
+                return `<span class="numero">${c.numero}</span><span class="palo">${c.palo}</span>`;
+            },
+
             dibujar(c) {
                 if (!c) return '<div class="carta vacia"></div>';
-                return `<div class="carta ${c.palo}"><span class="numero">${c.numero}</span><span class="palo">${c.palo}</span></div>`;
+                return `<div class="carta ${c.palo} ${this.conImagenes ? 'con-imagen' : ''}">${this.caraDe(c)}</div>`;
+            },
+
+            alternarSonido() {
+                this.sonido = !this.sonido;
+                try { localStorage.setItem('truco.sonido', this.sonido ? '1' : '0'); } catch {}
+                if (!this.sonido) window.speechSynthesis?.cancel();
+            },
+
+            // Hace sonar lo que se canta en la mesa (de los dos jugadores) con la voz del navegador.
+            oirCantos(eventos) {
+                const nuevos = eventos.filter(e => e.n > this.ultimoEvento);
+                const primeraVez = this.ultimoEvento === null;
+                this.ultimoEvento = Math.max(this.ultimoEvento ?? 0, ...eventos.map(e => e.n));
+                if (primeraVez || !this.sonido || !('speechSynthesis' in window)) return;
+                for (const e of nuevos.filter(e => e.canto)) {
+                    const frase = new SpeechSynthesisUtterance(e.texto.replace(/[¡!¿?«»]/g, ''));
+                    const voz = elegirVoz();
+                    frase.lang = voz?.lang ?? 'es-AR';
+                    if (voz) frase.voice = voz;
+                    frase.pitch = 0.8;
+                    frase.rate = 1;
+                    window.speechSynthesis.speak(frase);
+                }
             },
 
             resultado(r) {

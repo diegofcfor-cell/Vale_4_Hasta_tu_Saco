@@ -52,6 +52,11 @@ Se usa un túnel gratis de Cloudflare, sin cuenta ni configurar el router.
 
 La dirección cambia cada vez que levantás el túnel, y mientras esté abierto cualquiera con el link puede ver la portada. Cerralo con Ctrl+C cuando terminen.
 
+## Cartas y sonido
+
+- **Cartas reales:** poné las 40 imágenes en `public/cartas/` como `1-espada.png`, `12-copa.png`, etc. (ver `public/cartas/LEEME.md`). Si están, la mesa las usa; si no, muestra las cartas simples.
+- **Voz:** cuando alguien canta (truco, envido, flor, quiero, no quiero, al mazo) se escucha en los dos navegadores con la voz en español del sistema, preferentemente de Argentina y de hombre. Se apaga y prende con el 🔊 del marcador.
+
 ### Cómo funciona el tiempo real
 
 Cuando alguien juega, el servidor manda por Reverb un aviso vacío al canal `sala.{codigo}` y cada pantalla pide su propia vista. Así las cartas del rival nunca viajan por el WebSocket. Si Reverb se cae, la pantalla igual se actualiza sola cada 5 segundos.

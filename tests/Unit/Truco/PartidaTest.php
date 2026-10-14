@@ -250,6 +250,23 @@ class PartidaTest extends TestCase
         $this->assertSame([4, 0], $this->p->puntos());
     }
 
+    public function test_los_cantos_quedan_marcados_para_hacerlos_sonar(): void
+    {
+        $this->partida([self::ENVIDO_33_A_29]);
+
+        $this->cantar(0, Accion::Truco);
+        $this->cantar(1, Accion::Envido);
+
+        $ultimos = array_slice($this->p->eventos(), -3);
+        $this->assertSame(['¡Truco!', '¡El envido está primero!', 'Envido'], array_column($ultimos, 'texto'));
+        $this->assertSame([true, true, true], array_column($ultimos, 'canto'));
+        $this->assertSame([$ultimos[0]['n'] + 1, $ultimos[0]['n'] + 2], [$ultimos[1]['n'], $ultimos[2]['n']]);
+
+        $this->cantar(0, Accion::Quiero);
+        $resultado = array_values(array_filter($this->p->eventos(), fn ($e) => str_starts_with($e['texto'], 'Envido:')));
+        $this->assertFalse($resultado[0]['canto'], 'el resultado del envido no se canta');
+    }
+
     public function test_el_envido_solo_se_canta_en_primera_y_antes_de_querer_el_truco(): void
     {
         $this->partida([self::GANA_EL_CERO, self::GANA_EL_CERO]);

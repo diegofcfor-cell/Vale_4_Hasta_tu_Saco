@@ -93,6 +93,16 @@ class SalaTest extends TestCase
             ->assertJsonPath('mesa.0.yo.id', '1-espada');
     }
 
+    public function test_al_responder_un_truco_el_envido_se_ofrece_como_el_envido_esta_primero(): void
+    {
+        $sala = $this->sala();
+
+        $this->comoJugador($sala, 0)->postJson(route('salas.accion', $sala), ['accion' => 'truco']);
+
+        $acciones = $this->comoJugador($sala, 1)->getJson(route('salas.estado', $sala))->json('acciones');
+        $this->assertContains(['accion' => 'envido', 'etiqueta' => '¡El envido está primero!'], $acciones);
+    }
+
     public function test_una_jugada_invalida_devuelve_el_motivo(): void
     {
         $sala = $this->sala();

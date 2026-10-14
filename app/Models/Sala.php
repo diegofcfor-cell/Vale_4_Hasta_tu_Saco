@@ -98,11 +98,19 @@ class Sala extends Model
                 'respondo' => $pendiente['responde'] === $yo,
             ],
             'acciones' => $this->completa()
-                ? array_map(fn (Accion $a) => ['accion' => $a->value, 'etiqueta' => $a->etiqueta()], $partida->accionesDisponibles($yo))
+                ? array_map(fn (Accion $a) => [
+                    'accion' => $a->value,
+                    // Contestar un truco con envido es "el envido está primero".
+                    'etiqueta' => $a === Accion::Envido && $pendiente !== null && $pendiente['tipo'] === 'truco'
+                        ? '¡El envido está primero!'
+                        : $a->etiqueta(),
+                ], $partida->accionesDisponibles($yo))
                 : [],
             'eventos' => array_map(fn (array $e) => [
+                'n' => $e['n'],
                 'quien' => $e['jugador'] === null ? null : $this->nombreDe($e['jugador']),
                 'texto' => $e['texto'],
+                'canto' => $e['canto'],
             ], array_slice($partida->eventos(), -12)),
             'chat' => $this->mensajes()->latest('id')->limit(30)->get()->reverse()->values()
                 ->map(fn (Mensaje $m) => [
