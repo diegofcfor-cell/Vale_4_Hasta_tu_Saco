@@ -1,6 +1,6 @@
 # Documento de requerimientos
 
-**Proyecto:** Vale 4 Hasta tu Saco, el truco, juego de cartas españolas típico de Argentina, para dos jugadores en tiempo real
+**Proyecto:** Vale 4 Hasta tu Saco, un juego de mesa con cartas españolas llamado truco, típico de Argentina, para dos jugadores en tiempo real
 **Materia:** Programación IV, Tecnicatura Universitaria en Programación, UTN Facultad Regional Resistencia
 **Unidad relacionada:** U4, WebSockets con Laravel (Reverb + Echo)
 **Autor:** Diego

@@ -1,6 +1,6 @@
 # Manual del usuario
 
-**Vale 4 Hasta tu Saco** es el truco, juego de cartas españolas típico de Argentina, para dos jugadores, cada uno desde su PC.
+**Vale 4 Hasta tu Saco** es un juego de mesa con cartas españolas llamado truco, típico de Argentina, para dos jugadores, cada uno desde su PC.
 
 Este manual tiene dos partes: la del **anfitrión**, que levanta el juego en su computadora, y la del **jugador**, que sirve para los dos (el invitado solo necesita esta parte).
 
