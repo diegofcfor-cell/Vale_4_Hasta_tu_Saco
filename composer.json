@@ -2,9 +2,14 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Truco argentino para dos jugadores en tiempo real con Laravel Reverb.",
+    "keywords": ["laravel", "reverb", "websockets", "truco"],
     "license": "MIT",
+    "authors": [
+        {
+            "name": "Diego Fabian Cardozo"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
