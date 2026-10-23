@@ -9,6 +9,11 @@ Truco argentino para dos jugadores, hecho con Laravel 12. Cada jugador juega des
 3. **Tiempo real con Reverb y túnel** ✅: las jugadas llegan al instante y el link funciona desde cualquier casa (Cloudflare Tunnel).
 4. **Chat con frases del truco** ✅: frases típicas con un toque ("Son buenas", "¡Mentira!", "¿Tenés el ancho?"...) o texto libre.
 
+## Documentación
+
+- [Requerimientos](docs/requerimientos.md): objetivo, requerimientos funcionales y no funcionales, y cómo se aplica Reverb + Echo (Unidad 4 de Programación IV).
+- [Manual del usuario](docs/manual-usuario.md): cómo levantar la mesa, invitar a tu rival y jugar.
+
 ## Cómo correrlo
 
 La primera vez:
