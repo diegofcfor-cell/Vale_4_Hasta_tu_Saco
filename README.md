@@ -1,6 +1,6 @@
 # Vale 4 Hasta tu Saco
 
-Truco argentino para dos jugadores, hecho con Laravel 12. Cada jugador juega desde su PC: uno crea la partida y le manda el link al otro.
+Juego de mesa, con cartas españolas, llamado "Truco" tipico de argentina, para dos jugadores, hecho con Laravel 12. Cada jugador juega desde su PC: uno crea la partida y le manda el link al otro.
 
 ## Plan
 
