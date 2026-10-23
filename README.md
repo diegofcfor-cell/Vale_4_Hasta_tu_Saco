@@ -128,3 +128,11 @@ Si una acción no está permitida en ese momento, `ejecutar()` lanza `AccionInva
 **Irse al mazo.** El rival se lleva lo que vale la mano. Si te vas en la primera baza y todavía no se jugó el envido, le das un punto más. Irse cuando te cantan truco es lo mismo que no quererlo.
 
 **Partida.** A 15 o a 30 puntos; el mano se alterna en cada mano.
+
+## Licencia
+
+El código es de **Diego Fabian Cardozo** y se publica con la [licencia MIT](LICENSE): cualquiera puede usarlo, copiarlo y modificarlo, siempre que mantenga el aviso de autor.
+
+Las imágenes de las cartas (`public/cartas/`) no están bajo MIT: son de Basquetteur y se comparten con CC BY-SA 3.0 (ver [public/cartas/LEEME.md](public/cartas/LEEME.md)).
+
+Los cambios de cada versión están en el [CHANGELOG](CHANGELOG.md).
