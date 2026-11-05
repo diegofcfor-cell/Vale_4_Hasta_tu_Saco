@@ -11,8 +11,10 @@ Juego de mesa, con cartas españolas, llamado "Truco" tipico de argentina, para 
 
 ## Documentación
 
+- [Informe del proyecto](docs/INFORME.md): el trabajo completo para presentar, con objetivos, marco teórico, diseño, implementación, pruebas, resultados con capturas y conclusiones.
 - [Requerimientos](docs/requerimientos.md): objetivo, requerimientos funcionales y no funcionales, y cómo se aplica Reverb + Echo (Unidad 4 de Programación IV).
 - [Manual del usuario](docs/manual-usuario.md): cómo levantar la mesa, invitar a tu rival y jugar.
+- [Control de flujo](docs/control-de-flujo.md): diagramas de la partida, el turno, los cantos y el viaje de una jugada.
 
 ## Cómo correrlo
 
